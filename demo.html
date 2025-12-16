@@ -1,0 +1,384 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Keystroke Capture Demo - Behavioral Learning Analytics</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #1e1e1e;
+            color: #d4d4d4;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            text-align: center;
+        }
+        .header h1 {
+            font-size: 24px;
+            margin-bottom: 5px;
+        }
+        .header p {
+            font-size: 14px;
+            opacity: 0.9;
+        }
+        .container {
+            display: flex;
+            flex: 1;
+            overflow: hidden;
+        }
+        .editor-container {
+            flex: 2;
+            display: flex;
+            flex-direction: column;
+            border-right: 2px solid #333;
+        }
+        #editor {
+            flex: 1;
+        }
+        .sidebar {
+            flex: 1;
+            background: #252526;
+            padding: 20px;
+            overflow-y: auto;
+        }
+        .sidebar h2 {
+            color: #667eea;
+            margin-bottom: 15px;
+            font-size: 18px;
+        }
+        .stats {
+            background: #2d2d30;
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 20px;
+        }
+        .stat-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px 0;
+            border-bottom: 1px solid #3e3e42;
+        }
+        .stat-item:last-child {
+            border-bottom: none;
+        }
+        .stat-label {
+            color: #9d9d9d;
+        }
+        .stat-value {
+            color: #4ec9b0;
+            font-weight: bold;
+        }
+        .events-log {
+            background: #2d2d30;
+            border-radius: 8px;
+            padding: 15px;
+            max-height: 400px;
+            overflow-y: auto;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+        }
+        .event-item {
+            padding: 5px;
+            margin: 3px 0;
+            background: #1e1e1e;
+            border-left: 3px solid #667eea;
+            border-radius: 3px;
+        }
+        .event-keydown {
+            border-left-color: #4ec9b0;
+        }
+        .event-keyup {
+            border-left-color: #c586c0;
+        }
+        .status {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: 600;
+            margin-bottom: 15px;
+        }
+        .status.active {
+            background: #10b981;
+            color: white;
+        }
+        .status.inactive {
+            background: #ef4444;
+            color: white;
+        }
+        .controls {
+            padding: 15px 20px;
+            background: #2d2d30;
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+        button {
+            padding: 8px 16px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.3s;
+        }
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+        .btn-danger {
+            background: #ef4444;
+            color: white;
+        }
+        .btn-secondary {
+            background: #6b7280;
+            color: white;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🎓 Keystroke Capture Demo</h1>
+        <p>Behavioral Learning Analytics - Real-time Keystroke Dynamics Monitoring</p>
+    </div>
+
+    <div class="container">
+        <div class="editor-container">
+            <div class="controls">
+                <span class="status active" id="status">● Capturing</span>
+                <button class="btn-primary" onclick="startCapture()">Start Capture</button>
+                <button class="btn-danger" onclick="stopCapture()">Stop Capture</button>
+                <button class="btn-secondary" onclick="clearStats()">Clear Stats</button>
+            </div>
+            <div id="editor"></div>
+        </div>
+
+        <div class="sidebar">
+            <h2>📊 Session Statistics</h2>
+            <div class="stats">
+                <div class="stat-item">
+                    <span class="stat-label">Session ID:</span>
+                    <span class="stat-value" id="sessionId">-</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-label">Total Keystrokes:</span>
+                    <span class="stat-value" id="totalKeys">0</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-label">Batches Sent:</span>
+                    <span class="stat-value" id="batchesSent">0</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-label">Buffer Size:</span>
+                    <span class="stat-value" id="bufferSize">0</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-label">Typing Speed:</span>
+                    <span class="stat-value" id="typingSpeed">0 WPM</span>
+                </div>
+            </div>
+
+            <h2>📝 Recent Events</h2>
+            <div class="events-log" id="eventsLog">
+                <div style="color: #9d9d9d; text-align: center; padding: 20px;">
+                    Start typing to see events...
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Monaco Editor -->
+    <script src="https://cdn.jsdelivr.net/npm/monaco-editor@0.45.0/min/vs/loader.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/uuid@9.0.0/dist/umd/uuidv4.min.js"></script>
+
+    <script>
+        let editor;
+        let sessionId;
+        let buffer = [];
+        let totalKeystrokes = 0;
+        let batchesSent = 0;
+        let isCapturing = true;
+        let batchTimer;
+        let startTime = Date.now();
+
+        const API_ENDPOINT = 'http://localhost:3000/api/v1/keystrokes/log';
+        const USER_ID = uuidv4();
+        const BATCH_SIZE = 50;
+        const BATCH_TIME = 5000;
+
+        // Initialize Monaco Editor
+        require.config({ paths: { vs: 'https://cdn.jsdelivr.net/npm/monaco-editor@0.45.0/min/vs' } });
+        require(['vs/editor/editor.main'], function () {
+            editor = monaco.editor.create(document.getElementById('editor'), {
+                value: '# Welcome to Keystroke Capture Demo!\n# Start typing to see real-time keystroke analytics\n\ndef hello_world():\n    print("Hello, World!")\n    \n# Try typing some Python code...\n',
+                language: 'python',
+                theme: 'vs-dark',
+                fontSize: 14,
+                minimap: { enabled: false },
+                automaticLayout: true
+            });
+
+            sessionId = uuidv4();
+            document.getElementById('sessionId').textContent = sessionId.substring(0, 8) + '...';
+
+            // Attach keystroke listeners
+            editor.onKeyDown((e) => handleKeyEvent(e, 'keyDown'));
+            editor.onKeyUp((e) => handleKeyEvent(e, 'keyUp'));
+
+            startBatchTimer();
+        });
+
+        function handleKeyEvent(e, eventType) {
+            if (!isCapturing) return;
+
+            const event = {
+                session_id: sessionId,
+                user_id: USER_ID,
+                event_type: eventType,
+                timestamp_ms: Date.now(),
+                key_code: e.code || e.keyCode.toString(),
+                key_value: e.browserEvent.key || '',
+                cursor_offset: editor.getModel().getOffsetAt(editor.getPosition()),
+                modifier_state: {
+                    shift: e.shiftKey,
+                    ctrl: e.ctrlKey,
+                    alt: e.altKey,
+                    meta: e.metaKey
+                }
+            };
+
+            buffer.push(event);
+            totalKeystrokes++;
+
+            updateStats();
+            logEvent(event);
+
+            // Check if batch size limit reached
+            if (buffer.length >= BATCH_SIZE) {
+                sendBatch();
+            }
+        }
+
+        function sendBatch() {
+            if (buffer.length === 0) return;
+
+            const payload = {
+                session_id: sessionId,
+                user_id: USER_ID,
+                events: [...buffer],
+                metadata: {
+                    batch_size: buffer.length,
+                    client_timestamp: Date.now(),
+                    browser: {
+                        userAgent: navigator.userAgent,
+                        language: navigator.language,
+                        platform: navigator.platform
+                    }
+                }
+            };
+
+            fetch(API_ENDPOINT, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-Session-ID': sessionId
+                },
+                body: JSON.stringify(payload)
+            })
+            .then(response => response.json())
+            .then(data => {
+                console.log('Batch sent successfully:', data);
+                batchesSent++;
+                buffer = [];
+                updateStats();
+            })
+            .catch(error => {
+                console.error('Failed to send batch:', error);
+            });
+        }
+
+        function startBatchTimer() {
+            batchTimer = setInterval(() => {
+                if (buffer.length > 0) {
+                    sendBatch();
+                }
+            }, BATCH_TIME);
+        }
+
+        function updateStats() {
+            document.getElementById('totalKeys').textContent = totalKeystrokes;
+            document.getElementById('batchesSent').textContent = batchesSent;
+            document.getElementById('bufferSize').textContent = buffer.length;
+
+            // Calculate WPM (assuming average word length of 5 characters)
+            const minutes = (Date.now() - startTime) / 60000;
+            const wpm = minutes > 0 ? Math.round((totalKeystrokes / 5) / minutes) : 0;
+            document.getElementById('typingSpeed').textContent = wpm + ' WPM';
+        }
+
+        function logEvent(event) {
+            const log = document.getElementById('eventsLog');
+            const eventDiv = document.createElement('div');
+            eventDiv.className = `event-item event-${event.event_type}`;
+            eventDiv.textContent = `${event.event_type}: ${event.key_value || event.key_code} [${event.timestamp_ms}]`;
+
+            log.insertBefore(eventDiv, log.firstChild);
+
+            // Keep only last 50 events
+            while (log.children.length > 50) {
+                log.removeChild(log.lastChild);
+            }
+        }
+
+        function startCapture() {
+            isCapturing = true;
+            document.getElementById('status').className = 'status active';
+            document.getElementById('status').textContent = '● Capturing';
+            console.log('Capture started');
+        }
+
+        function stopCapture() {
+            isCapturing = false;
+            sendBatch(); // Flush remaining events
+            document.getElementById('status').className = 'status inactive';
+            document.getElementById('status').textContent = '○ Stopped';
+            console.log('Capture stopped');
+        }
+
+        function clearStats() {
+            totalKeystrokes = 0;
+            batchesSent = 0;
+            buffer = [];
+            startTime = Date.now();
+            document.getElementById('eventsLog').innerHTML = '<div style="color: #9d9d9d; text-align: center; padding: 20px;">Start typing to see events...</div>';
+            updateStats();
+        }
+
+        // Send remaining data before page unload
+        window.addEventListener('beforeunload', () => {
+            if (buffer.length > 0) {
+                navigator.sendBeacon(API_ENDPOINT, JSON.stringify({
+                    session_id: sessionId,
+                    user_id: USER_ID,
+                    events: buffer,
+                    metadata: { session_end: true }
+                }));
+            }
+        });
+    </script>
+</body>
+</html>

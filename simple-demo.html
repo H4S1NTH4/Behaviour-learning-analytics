@@ -1,0 +1,419 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Simple Keystroke Capture Demo</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: 'Courier New', monospace;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            padding: 20px;
+        }
+        .header {
+            background: white;
+            color: #667eea;
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            text-align: center;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+        }
+        .header h1 {
+            font-size: 28px;
+            margin-bottom: 10px;
+        }
+        .container {
+            display: grid;
+            grid-template-columns: 2fr 1fr;
+            gap: 20px;
+            flex: 1;
+        }
+        .editor-section {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        .editor {
+            background: #1e1e1e;
+            color: #d4d4d4;
+            padding: 20px;
+            border-radius: 10px;
+            font-size: 16px;
+            font-family: 'Courier New', monospace;
+            resize: none;
+            flex: 1;
+            border: 3px solid #667eea;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+            outline: none;
+        }
+        .editor:focus {
+            border-color: #4ec9b0;
+            box-shadow: 0 5px 25px rgba(78, 201, 176, 0.4);
+        }
+        .stats-section {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+        .card {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+        }
+        .card h2 {
+            color: #667eea;
+            margin-bottom: 15px;
+            font-size: 18px;
+        }
+        .stat-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px 0;
+            border-bottom: 1px solid #e2e8f0;
+        }
+        .stat-item:last-child {
+            border-bottom: none;
+        }
+        .stat-value {
+            font-weight: bold;
+            color: #4ec9b0;
+        }
+        .status-badge {
+            display: inline-block;
+            padding: 5px 15px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: bold;
+            margin-bottom: 15px;
+        }
+        .status-active {
+            background: #10b981;
+            color: white;
+        }
+        .events-log {
+            max-height: 300px;
+            overflow-y: auto;
+            background: #f8fafc;
+            padding: 10px;
+            border-radius: 5px;
+            font-size: 12px;
+        }
+        .event {
+            padding: 5px;
+            margin: 3px 0;
+            border-left: 3px solid #667eea;
+            background: white;
+            border-radius: 3px;
+        }
+        .event-keydown {
+            border-left-color: #4ec9b0;
+        }
+        .event-keyup {
+            border-left-color: #c586c0;
+        }
+        .controls {
+            display: flex;
+            gap: 10px;
+        }
+        button {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        .btn-primary {
+            background: #667eea;
+            color: white;
+        }
+        .btn-primary:hover {
+            background: #5568d3;
+            transform: translateY(-2px);
+        }
+        .btn-danger {
+            background: #ef4444;
+            color: white;
+        }
+        .btn-danger:hover {
+            background: #dc2626;
+        }
+        .instruction {
+            background: #fef3c7;
+            color: #92400e;
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 10px;
+            border-left: 4px solid #f59e0b;
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🎓 Keystroke Capture Demo</h1>
+        <p>Behavioral Learning Analytics - Real-time Monitoring</p>
+    </div>
+
+    <div class="container">
+        <div class="editor-section">
+            <div class="instruction">
+                👉 <strong>Click in the text area below and start typing!</strong> Watch the stats update in real-time.
+            </div>
+            <div class="controls">
+                <button class="btn-primary" onclick="clearEditor()">Clear Editor</button>
+                <button class="btn-danger" onclick="stopCapture()">Stop Capture</button>
+                <button class="btn-primary" onclick="startCapture()">Start Capture</button>
+            </div>
+            <textarea
+                id="editor"
+                class="editor"
+                placeholder="Start typing here... Try writing some code or text. Every keystroke is being captured and analyzed!"
+                autofocus
+            ># Welcome to Keystroke Capture Demo!
+# Start typing to see real-time analytics
+
+def hello_world():
+    print("Hello, World!")
+
+# Try typing something...</textarea>
+        </div>
+
+        <div class="stats-section">
+            <div class="card">
+                <span class="status-badge status-active" id="status">● Capturing Active</span>
+                <h2>📊 Session Stats</h2>
+                <div class="stat-item">
+                    <span>Session ID:</span>
+                    <span class="stat-value" id="sessionId">-</span>
+                </div>
+                <div class="stat-item">
+                    <span>Total Keys:</span>
+                    <span class="stat-value" id="totalKeys">0</span>
+                </div>
+                <div class="stat-item">
+                    <span>Batches Sent:</span>
+                    <span class="stat-value" id="batchesSent">0</span>
+                </div>
+                <div class="stat-item">
+                    <span>Buffer:</span>
+                    <span class="stat-value" id="bufferSize">0</span>
+                </div>
+                <div class="stat-item">
+                    <span>WPM:</span>
+                    <span class="stat-value" id="wpm">0</span>
+                </div>
+                <div class="stat-item">
+                    <span>API Status:</span>
+                    <span class="stat-value" id="apiStatus">Ready</span>
+                </div>
+            </div>
+
+            <div class="card">
+                <h2>📝 Recent Events</h2>
+                <div class="events-log" id="eventsLog">
+                    <div style="color: #9d9d9d; text-align: center; padding: 20px;">
+                        Waiting for keystrokes...
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Generate UUID v4
+        function uuidv4() {
+            return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+                var r = Math.random() * 16 | 0, v = c == 'x' ? r : (r & 0x3 | 0x8);
+                return v.toString(16);
+            });
+        }
+
+        const sessionId = uuidv4();
+        const userId = uuidv4();
+        const API_ENDPOINT = 'http://localhost:3000/api/v1/keystrokes/log';
+        const BATCH_SIZE = 20;
+        const BATCH_TIME = 3000;
+
+        let buffer = [];
+        let totalKeys = 0;
+        let batchesSent = 0;
+        let isCapturing = true;
+        let startTime = Date.now();
+        let batchTimer;
+
+        // Initialize
+        document.getElementById('sessionId').textContent = sessionId.substring(0, 8) + '...';
+        const editor = document.getElementById('editor');
+
+        // Event listeners
+        editor.addEventListener('keydown', (e) => handleKeyEvent(e, 'keyDown'));
+        editor.addEventListener('keyup', (e) => handleKeyEvent(e, 'keyUp'));
+
+        function handleKeyEvent(e, eventType) {
+            if (!isCapturing) return;
+
+            const event = {
+                session_id: sessionId,
+                user_id: userId,
+                event_type: eventType,
+                timestamp_ms: Date.now(),
+                key_code: e.code || e.keyCode.toString(),
+                key_value: e.key || '',
+                cursor_offset: editor.selectionStart,
+                modifier_state: {
+                    shift: e.shiftKey,
+                    ctrl: e.ctrlKey,
+                    alt: e.altKey,
+                    meta: e.metaKey
+                }
+            };
+
+            buffer.push(event);
+            totalKeys++;
+
+            updateStats();
+            logEvent(event);
+
+            if (buffer.length >= BATCH_SIZE) {
+                sendBatch();
+            }
+        }
+
+        function sendBatch() {
+            if (buffer.length === 0) return;
+
+            const payload = {
+                session_id: sessionId,
+                user_id: userId,
+                events: [...buffer],
+                metadata: {
+                    batch_size: buffer.length,
+                    client_timestamp: Date.now(),
+                    browser: {
+                        userAgent: navigator.userAgent,
+                        language: navigator.language,
+                        platform: navigator.platform
+                    }
+                }
+            };
+
+            document.getElementById('apiStatus').textContent = 'Sending...';
+
+            fetch(API_ENDPOINT, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-Session-ID': sessionId
+                },
+                body: JSON.stringify(payload)
+            })
+            .then(response => response.json())
+            .then(data => {
+                console.log('✅ Batch sent:', data);
+                batchesSent++;
+                buffer = [];
+                document.getElementById('apiStatus').textContent = 'Success ✓';
+                setTimeout(() => {
+                    document.getElementById('apiStatus').textContent = 'Ready';
+                }, 1000);
+                updateStats();
+            })
+            .catch(error => {
+                console.error('❌ Failed to send batch:', error);
+                document.getElementById('apiStatus').textContent = 'Error ✗';
+            });
+        }
+
+        function updateStats() {
+            document.getElementById('totalKeys').textContent = totalKeys;
+            document.getElementById('batchesSent').textContent = batchesSent;
+            document.getElementById('bufferSize').textContent = buffer.length;
+
+            const minutes = (Date.now() - startTime) / 60000;
+            const wpm = minutes > 0 ? Math.round((totalKeys / 5) / minutes) : 0;
+            document.getElementById('wpm').textContent = wpm;
+        }
+
+        function logEvent(event) {
+            const log = document.getElementById('eventsLog');
+
+            if (log.children[0]?.textContent.includes('Waiting')) {
+                log.innerHTML = '';
+            }
+
+            const eventDiv = document.createElement('div');
+            eventDiv.className = `event event-${event.event_type}`;
+            eventDiv.innerHTML = `
+                <strong>${event.event_type}</strong>:
+                ${event.key_value || event.key_code}
+                <span style="color: #9d9d9d; font-size: 10px;">[${new Date(event.timestamp_ms).toLocaleTimeString()}]</span>
+            `;
+
+            log.insertBefore(eventDiv, log.firstChild);
+
+            while (log.children.length > 30) {
+                log.removeChild(log.lastChild);
+            }
+        }
+
+        function clearEditor() {
+            editor.value = '';
+            editor.focus();
+        }
+
+        function stopCapture() {
+            isCapturing = false;
+            sendBatch();
+            document.getElementById('status').textContent = '○ Capture Stopped';
+            document.getElementById('status').className = 'status-badge';
+            document.getElementById('status').style.background = '#ef4444';
+        }
+
+        function startCapture() {
+            isCapturing = true;
+            document.getElementById('status').textContent = '● Capturing Active';
+            document.getElementById('status').className = 'status-badge status-active';
+        }
+
+        // Auto-send batches
+        batchTimer = setInterval(() => {
+            if (buffer.length > 0) {
+                sendBatch();
+            }
+        }, BATCH_TIME);
+
+        // Focus editor on load
+        window.addEventListener('load', () => {
+            editor.focus();
+        });
+
+        // Cleanup on page unload
+        window.addEventListener('beforeunload', () => {
+            if (buffer.length > 0) {
+                navigator.sendBeacon(API_ENDPOINT, JSON.stringify({
+                    session_id: sessionId,
+                    user_id: userId,
+                    events: buffer,
+                    metadata: { session_end: true }
+                }));
+            }
+        });
+
+        console.log('🎓 Keystroke Capture Demo Ready!');
+        console.log('Session ID:', sessionId);
+        console.log('User ID:', userId);
+        console.log('API Endpoint:', API_ENDPOINT);
+    </script>
+</body>
+</html>

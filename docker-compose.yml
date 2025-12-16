@@ -1,0 +1,230 @@
+version: '3.8'
+
+services:
+  # PostgreSQL Database with TimescaleDB
+  postgres:
+    image: timescaledb/timescaledb:latest-pg16
+    container_name: behavioral_analytics_db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${DB_USER:-postgres}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-postgres_secure_password_123}
+      POSTGRES_DB: ${DB_NAME:-behavioral_analytics}
+      POSTGRES_INITDB_ARGS: "-c max_connections=${DB_MAX_CONNECTIONS:-200}"
+      PGDATA: /var/lib/postgresql/data/pgdata
+    ports:
+      - "${DB_PORT:-5432}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./server/src/database/migrations:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-postgres} -d ${DB_NAME:-behavioral_analytics}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    networks:
+      - analytics_network
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # API Server - Express.js backend
+  server-api:
+    build:
+      context: ./server
+      dockerfile: Dockerfile
+      args:
+        NODE_ENV: ${NODE_ENV:-development}
+    container_name: behavioral_analytics_api
+    restart: unless-stopped
+    ports:
+      - "${API_PORT:-3000}:3000"
+    environment:
+      NODE_ENV: ${NODE_ENV:-development}
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: ${DB_NAME:-behavioral_analytics}
+      DB_USER: ${DB_USER:-postgres}
+      DB_PASSWORD: ${DB_PASSWORD:-postgres_secure_password_123}
+      DB_POOL_SIZE: ${DB_POOL_SIZE:-20}
+      API_PORT: 3000
+      API_HOST: ${API_HOST:-0.0.0.0}
+      JWT_SECRET: ${JWT_SECRET}
+      ENCRYPTION_KEY: ${ENCRYPTION_KEY}
+      CORS_ENABLED: ${CORS_ENABLED:-true}
+      API_CORS_ORIGIN: ${API_CORS_ORIGIN}
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+      DEBUG_MODE: ${DEBUG_MODE:-false}
+      ENABLE_CONSENT: ${ENABLE_CONSENT:-true}
+      ENABLE_AUTHENTICATION: ${ENABLE_AUTHENTICATION:-true}
+    volumes:
+      - ./server/src:/app/src:ro
+      - server_logs:/var/log/behavioral-analytics
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:3000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    networks:
+      - analytics_network
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # Inference Engine - ML processing service
+  inference-engine:
+    build:
+      context: ./inference-engine
+      dockerfile: Dockerfile
+      args:
+        NODE_ENV: ${NODE_ENV:-development}
+    container_name: behavioral_analytics_inference
+    restart: unless-stopped
+    ports:
+      - "${INFERENCE_PORT:-3001}:3001"
+    environment:
+      NODE_ENV: ${NODE_ENV:-development}
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: ${DB_NAME:-behavioral_analytics}
+      DB_USER: ${DB_USER:-postgres}
+      DB_PASSWORD: ${DB_PASSWORD:-postgres_secure_password_123}
+      INFERENCE_PORT: 3001
+      INFERENCE_HOST: ${INFERENCE_HOST:-0.0.0.0}
+      INFERENCE_BATCH_SIZE: ${INFERENCE_BATCH_SIZE:-32}
+      INFERENCE_BUFFER_SIZE: ${INFERENCE_BUFFER_SIZE:-100}
+      INFERENCE_PROCESSING_INTERVAL: ${INFERENCE_PROCESSING_INTERVAL:-5000}
+      ML_MODEL_PATH: /app/models
+      LSTM_MODEL_PATH: ${LSTM_MODEL_PATH:-/app/models/lstm_model.h5}
+      FEATURE_SCALER_PATH: ${FEATURE_SCALER_PATH:-/app/models/scaler.pkl}
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+      DEBUG_MODE: ${DEBUG_MODE:-false}
+      ENABLE_REAL_TIME_INFERENCE: ${ENABLE_REAL_TIME_INFERENCE:-true}
+      ENABLE_COGNITIVE_LOAD_DETECTION: ${ENABLE_COGNITIVE_LOAD_DETECTION:-true}
+      ENABLE_ANOMALY_DETECTION: ${ENABLE_ANOMALY_DETECTION:-true}
+    volumes:
+      - ./inference-engine/src:/app/src:ro
+      - ./inference-engine/models:/app/models:ro
+      - inference_logs:/var/log/inference
+    depends_on:
+      postgres:
+        condition: service_healthy
+      server-api:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:3001/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    networks:
+      - analytics_network
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # Dashboard - React + Express frontend
+  dashboard:
+    build:
+      context: ./dashboard
+      dockerfile: Dockerfile
+      args:
+        NODE_ENV: ${NODE_ENV:-development}
+        VITE_API_BASE_URL: ${VITE_API_BASE_URL:-http://localhost:3000}
+        VITE_INFERENCE_BASE_URL: ${VITE_INFERENCE_BASE_URL:-http://localhost:3001}
+        VITE_WS_URL: ${VITE_WS_URL:-ws://localhost:3001}
+    container_name: behavioral_analytics_dashboard
+    restart: unless-stopped
+    ports:
+      - "${DASHBOARD_PORT:-3002}:3002"
+    environment:
+      NODE_ENV: ${NODE_ENV:-development}
+      DASHBOARD_PORT: 3002
+      DASHBOARD_HOST: ${DASHBOARD_HOST:-0.0.0.0}
+      VITE_API_BASE_URL: http://server-api:3000
+      VITE_INFERENCE_BASE_URL: http://inference-engine:3001
+      VITE_WS_URL: ws://inference-engine:3001
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+    volumes:
+      - ./dashboard/src:/app/src:ro
+      - ./dashboard/dist:/app/dist
+      - dashboard_logs:/var/log/dashboard
+    depends_on:
+      server-api:
+        condition: service_healthy
+      inference-engine:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:3002/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    networks:
+      - analytics_network
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # Redis Cache (Optional - for session management and caching)
+  redis:
+    image: redis:7-alpine
+    container_name: behavioral_analytics_redis
+    restart: unless-stopped
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD:-}
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+    networks:
+      - analytics_network
+    profiles:
+      - with-redis
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "5m"
+        max-file: "2"
+
+volumes:
+  postgres_data:
+    driver: local
+    name: behavioral_analytics_postgres_data
+  redis_data:
+    driver: local
+    name: behavioral_analytics_redis_data
+  server_logs:
+    driver: local
+    name: behavioral_analytics_server_logs
+  inference_logs:
+    driver: local
+    name: behavioral_analytics_inference_logs
+  dashboard_logs:
+    driver: local
+    name: behavioral_analytics_dashboard_logs
+
+networks:
+  analytics_network:
+    driver: bridge
+    name: behavioral_analytics_network
+    ipam:
+      config:
+        - subnet: 172.28.0.0/16

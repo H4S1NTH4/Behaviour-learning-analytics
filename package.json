@@ -1,0 +1,63 @@
+{
+  "name": "behavioral-analytics-monorepo",
+  "version": "1.0.0",
+  "description": "Comprehensive behavioral analytics system for keystroke dynamics-based continuous authentication, cognitive load detection, and academic integrity monitoring",
+  "private": true,
+  "type": "module",
+  "workspaces": [
+    "shared",
+    "server",
+    "client",
+    "dashboard",
+    "inference-engine"
+  ],
+  "scripts": {
+    "install-all": "npm install && npm install -ws",
+    "build": "npm run build -ws --if-present",
+    "build:shared": "npm run build -w shared",
+    "build:server": "npm run build -w server",
+    "build:client": "npm run build -w client",
+    "build:dashboard": "npm run build -w dashboard",
+    "build:inference": "npm run build -w inference-engine",
+    "dev": "npm run dev -ws --if-present",
+    "dev:server": "npm run dev -w server",
+    "dev:client": "npm run dev -w client",
+    "dev:dashboard": "npm run dev -w dashboard",
+    "dev:inference": "npm run dev -w inference-engine",
+    "start:server": "npm start -w server",
+    "start:dashboard": "npm run server -w dashboard",
+    "start:inference": "npm start -w inference-engine",
+    "start:all": "concurrently \"npm run start:server\" \"npm run start:inference\" \"npm run start:dashboard\"",
+    "clean": "npm run clean -ws --if-present && rm -rf node_modules dist",
+    "type-check": "npm run type-check -ws --if-present",
+    "docker-build": "docker-compose build",
+    "docker-up": "docker-compose up",
+    "docker-down": "docker-compose down",
+    "docker-restart": "docker-compose restart",
+    "docker-logs": "docker-compose logs -f",
+    "docker-clean": "docker-compose down -v",
+    "test": "npm test -ws --if-present"
+  },
+  "keywords": [
+    "behavioral-analytics",
+    "keystroke-dynamics",
+    "continuous-authentication",
+    "cognitive-load",
+    "academic-integrity",
+    "machine-learning",
+    "lstm",
+    "monorepo"
+  ],
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "@types/node": "^24.6.2",
+    "typescript": "^5.9.3",
+    "tsx": "^4.20.6",
+    "concurrently": "^8.2.2"
+  },
+  "engines": {
+    "node": ">=18.0.0",
+    "npm": ">=9.0.0"
+  }
+}

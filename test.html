@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Typing Test</title>
+    <style>
+        body {
+            background: #2d2d2d;
+            color: white;
+            font-family: Arial;
+            padding: 50px;
+        }
+        h1 { color: #4ec9b0; }
+        textarea {
+            width: 100%;
+            height: 400px;
+            font-size: 18px;
+            padding: 20px;
+            background: #1e1e1e;
+            color: #d4d4d4;
+            border: 3px solid #4ec9b0;
+        }
+        #stats {
+            margin-top: 20px;
+            font-size: 20px;
+            color: #4ec9b0;
+        }
+    </style>
+</head>
+<body>
+    <h1>✅ Simple Typing Test</h1>
+    <p>If you can type in this box, your browser is working correctly:</p>
+    <textarea id="textarea" placeholder="Click here and type anything..."></textarea>
+    <div id="stats">Keys pressed: <span id="count">0</span></div>
+
+    <script>
+        let count = 0;
+        const textarea = document.getElementById('textarea');
+
+        textarea.addEventListener('keydown', function(e) {
+            count++;
+            document.getElementById('count').textContent = count;
+            console.log('Key pressed:', e.key);
+        });
+
+        // Auto-focus
+        textarea.focus();
+        console.log('✅ Page loaded. Click in the text area and type!');
+    </script>
+</body>
+</html>
